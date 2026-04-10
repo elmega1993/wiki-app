@@ -17,14 +17,14 @@ Noticia sobre el impacto de la tregua de dos semanas en la guerra de Medio Orien
 
 #### Wall Street
 | Índice | Variación |
-|--------|-----------|
+|--------|----------|
 | Nasdaq 100 | +2,8% |
 | S&P 500 | +2,5% |
 | Dow Jones | +2,9% |
 
 #### Asia
 | Índice | Variación |
-|--------|-----------|
+|--------|----------|
 | KOSPI (Seúl) | +6,9% |
 | Nikkei (Tokio) | +5,4% |
 | Hang Seng (Hong Kong) | +3,1% |
@@ -32,7 +32,7 @@ Noticia sobre el impacto de la tregua de dos semanas en la guerra de Medio Orien
 
 #### Europa
 | Índice | Variación |
-|--------|-----------|
+|--------|----------|
 | Euro STOXX 50 | +5% |
 | CAC (París) | +4,5% |
 | DAX (Alemania) | +5,1% |

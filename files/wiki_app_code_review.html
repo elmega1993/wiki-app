@@ -1,0 +1,181 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); font-size: 14px; color: var(--color-text-primary); }
+  .section { margin-bottom: 2rem; }
+  .section-title { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 0.5px solid var(--color-border-tertiary); }
+  .card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.1rem; margin-bottom: 0.6rem; display: flex; gap: 12px; align-items: flex-start; }
+  .card:last-child { margin-bottom: 0; }
+  .badge { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 12px; white-space: nowrap; flex-shrink: 0; margin-top: 1px; }
+  .badge-crit { background: #FCEBEB; color: #A32D2D; }
+  .badge-warn { background: #FAEEDA; color: #854F0B; }
+  .badge-info { background: #E6F1FB; color: #185FA5; }
+  .badge-ok   { background: #EAF3DE; color: #3B6D11; }
+  .card-body { flex: 1; min-width: 0; }
+  .card-title { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+  .card-desc { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; }
+  .card-code { font-family: var(--font-mono); font-size: 11px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: 4px; padding: 6px 8px; margin-top: 6px; color: var(--color-text-primary); white-space: pre-wrap; word-break: break-all; }
+  .fix { font-size: 11px; color: #3B6D11; margin-top: 5px; background: #EAF3DE; border-radius: 4px; padding: 4px 8px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+  .stat { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem 1rem; }
+  .stat-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 4px; }
+  .stat-val { font-size: 20px; font-weight: 500; }
+  .stat-val.crit { color: #A32D2D; }
+  .stat-val.warn { color: #854F0B; }
+  .stat-val.info { color: #185FA5; }
+</style>
+
+<div style="padding: 1rem 0;">
+
+  <div class="summary-grid">
+    <div class="stat"><div class="stat-label">Bugs críticos</div><div class="stat-val crit">2</div></div>
+    <div class="stat"><div class="stat-label">Bugs menores</div><div class="stat-val warn">4</div></div>
+    <div class="stat"><div class="stat-label">Problemas UI</div><div class="stat-val info">2</div></div>
+    <div class="stat"><div class="stat-label">Mejoras</div><div class="stat-val" style="color:var(--color-text-primary)">5</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Bugs críticos</div>
+
+    <div class="card">
+      <span class="badge badge-crit">BUG 1</span>
+      <div class="card-body">
+        <div class="card-title">Batch ingest se detiene en el primer error (es tu bug reportado)</div>
+        <div class="card-desc">El <code>try/except</code> envuelve todo el <code>for</code> loop. Cualquier excepción (timeout de LM Studio, JSON inválido del modelo, encoding error) mata el batch completo. Si el primer archivo falla, los demás nunca se procesan.</div>
+        <div class="card-code">try:
+    for idx, file_path in enumerate(file_paths):  # ← todo el loop adentro
+        ...process...
+except Exception as exc:
+    self.after(0, lambda: self._set_status(f"❌ Batch detenido en {processed}..."))</div>
+        <div class="fix">Fix: mover el try/except DENTRO del for loop, con continue en el except para seguir con el siguiente archivo.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="badge badge-crit">BUG 2</span>
+      <div class="card-body">
+        <div class="card-title">Obsidian graph en estrella: las páginas no tienen wikilinks entre sí</div>
+        <div class="card-desc">En toda la wiki hay exactamente 1 wikilink <code>[[...]]</code> (en el archivo de demo de Obsidian). Las páginas generadas por el modelo usan texto plano como <code>`wiki/fuentes/file.md`</code> en bloques de código, no links reales. Obsidian solo puede trazar conexiones con <code>[[wikilinks]]</code> o links markdown. El único archivo con links reales es <code>index.md</code>, de ahí la topología de estrella.</div>
+        <div class="card-code">Trazabilidad
+- Fuente original: `wiki/fuentes/hype-usdc-chart.md`  ← texto plano, Obsidian lo ignora
+
+Debería ser:
+- Fuente original: [[hype-usdc-chart-2026-04-09]]      ← esto sí construye la conexión</div>
+        <div class="fix">Fix: agregar al schema del prompt una regla explícita: "Usá siempre wikilinks Obsidian [[nombre-archivo]] para referencias cruzadas entre páginas, nunca texto plano ni código."</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Bugs menores</div>
+
+    <div class="card">
+      <span class="badge badge-warn">BUG 3</span>
+      <div class="card-body">
+        <div class="card-title"><code>parse_json_response</code>: <code>rfind("\n{")</code> puede cortar el JSON a la mitad</div>
+        <div class="card-desc">Busca el último <code>\n{</code> del string. Si el JSON tiene objetos anidados en nuevas líneas, apunta a un objeto interno en lugar del objeto raíz, produciendo JSON inválido. Caso típico: cuando el contenido markdown de una página empieza con <code>{</code> al inicio de una línea.</div>
+        <div class="card-code">start = raw.rfind("\n{")   # ← apunta al ÚLTIMO \n{ del JSON, puede ser un objeto anidado
+end = raw.rfind("}") + 1  # ← también corta en el último } del string</div>
+        <div class="fix">Fix: usar <code>raw.find("{")</code> (primero) y buscar el } final con un contador de balance de llaves, o usar <code>json.JSONDecoder().raw_decode()</code>.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="badge badge-warn">BUG 4</span>
+      <div class="card-body">
+        <div class="card-title"><code>_HOY</code> / <code>_HORA</code> calculados al inicio, nunca se actualizan</div>
+        <div class="card-desc">Son constantes de módulo. Si la app corre más de unas horas (o cruza la medianoche), todos los ingest y consultas del día siguiente se marcan con la fecha de arranque.</div>
+        <div class="card-code">_HOY = datetime.now().strftime("%Y-%m-%d")  # ← se fija al importar el módulo</div>
+        <div class="fix">Fix: calcular dentro de <code>load_schema()</code> con <code>datetime.now()</code> cada vez que se llama.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="badge badge-warn">BUG 5</span>
+      <div class="card-body">
+        <div class="card-title"><code>normalize_route</code>: path traversal con <code>str.startswith()</code></div>
+        <div class="card-desc">Un path como <code>/ruta/al/wiki-malicioso/archivo.md</code> pasaría el chequeo porque la comparación es string, no path. Debería usarse <code>Path.is_relative_to()</code>.</div>
+        <div class="card-code">if not (str(resolved).startswith(str(WIKI_DIR)) or ...):  # ← bug de string vs path
+    raise ValueError(...)
+
+# wiki-extra pasa el check de wiki incorrectamente:
+# "/path/wiki-extra".startswith("/path/wiki") → True</div>
+        <div class="fix">Fix: <code>resolved.is_relative_to(WIKI_DIR) or resolved.is_relative_to(RAW_DIR)</code> (Python 3.9+).</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="badge badge-warn">BUG 6</span>
+      <div class="card-body">
+        <div class="card-title">Batch ingest re-archiva archivos que ya estaban en <code>raw/</code></div>
+        <div class="card-desc">Al usar "Cargar raw/", los archivos ya están archivados. Pero <code>process_ingest_source</code> llama a <code>archive_source()</code> nuevamente, creando duplicados con timestamp en el nombre. Además, "Cargar raw/" solo carga de <code>raw/fuentes-originales/</code>, ignorando PDFs e imágenes en <code>raw/assets/</code>.</div>
+        <div class="fix">Fix: agregar un flag <code>already_archived=False</code> a <code>process_ingest_source</code>. Al cargar desde raw/, pasarlo como True.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Problemas de UI / UX</div>
+
+    <div class="card">
+      <span class="badge badge-info">UI 1</span>
+      <div class="card-body">
+        <div class="card-title">Batch ingest: no hay progreso real ni posibilidad de cancelar</div>
+        <div class="card-desc">El status bar muestra "Batch ingest 2/5: archivo.md" pero si LM Studio tarda 3 minutos por archivo y hay 8 archivos, la app parece colgada. No hay barra de progreso visual ni botón de cancelar. El thread es daemon=True, así que matar la ventana cancela todo sin warning.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="badge badge-info">UI 2</span>
+      <div class="card-body">
+        <div class="card-title">El editor es solo lectura en la práctica, pero parece editable</div>
+        <div class="card-desc">El <code>ScrolledText</code> está en <code>state="normal"</code> y el usuario puede tipear en él, pero esos cambios nunca se guardan (no hay botón de "guardar archivo"). Genera expectativa falsa. Debería ser <code>state="disabled"</code> con un botón explícito de edición, o tener auto-save real.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Mejoras sugeridas</div>
+
+    <div class="card">
+      <span class="badge badge-ok">MEJ 1</span>
+      <div class="card-body">
+        <div class="card-title">El schema debería incluir entidades y conceptos ya existentes como contexto</div>
+        <div class="card-desc">Al ingerir, el modelo no sabe qué entidades ya existen en <code>wiki/entidades/</code> o <code>wiki/conceptos/</code>. Debería recibir el listado para reusar páginas en lugar de crear duplicados con nombres distintos.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="badge badge-ok">MEJ 2</span>
+      <div class="card-body">
+        <div class="card-title">Agregar deduplicación de señales por similitud de título</div>
+        <div class="card-desc">Al ingerir varias fuentes sobre el mismo tema, el modelo genera múltiples señales casi idénticas. Una revisión simple de slugs o títulos antes de guardar evitaría la proliferación.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="badge badge-ok">MEJ 3</span>
+      <div class="card-body">
+        <div class="card-title">Separar el timeout de ingest por tipo de archivo</div>
+        <div class="card-desc">Actualmente todos los ingest usan <code>timeout=180</code>. Un PDF de 50 páginas necesita más tiempo. Una imagen simple necesita menos. Sería útil un timeout configurable en la UI o calculado por tamaño de archivo.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="badge badge-ok">MEJ 4</span>
+      <div class="card-body">
+        <div class="card-title">El lint debería poder archivar su propio reporte</div>
+        <div class="card-desc">El resultado del lint se muestra en el editor pero no se puede guardar fácilmente. Un botón "Guardar reporte de lint" en <code>wiki/consultas/lint-YYYY-MM-DD.md</code> sería útil para tracking evolutivo de la salud de la wiki.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <span class="badge badge-ok">MEJ 5</span>
+      <div class="card-body">
+        <div class="card-title">Soporte para drag & drop de archivos en la ventana de ingest</div>
+        <div class="card-desc">Tkinter soporta DnD via <code>tkinterdnd2</code>. Arrastrar un PDF o imagen directamente a la ventana de ingest mejoraría mucho el flujo de trabajo vs el file picker.</div>
+      </div>
+    </div>
+  </div>
+
+</div>

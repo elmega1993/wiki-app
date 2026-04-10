@@ -1,55 +1,68 @@
-# LLM Wiki — App de escritorio
+# LLM Wiki
 
-App de escritorio Python que conecta con LM Studio para construir
-una wiki personal generalista de forma incremental.
+App de escritorio en Python que conecta con LM Studio para construir una wiki personal generalista orientada a inteligencia y acción.
 
-Ahora sigue más de cerca el patrón de "LLM Wiki":
-- `raw/` se usa como archivo inmutable de fuentes
-- `wiki_schema.md` define el contrato y las convenciones de la wiki
-- `index.md` y `log.md` los mantiene la app de forma determinista
-- las consultas e ingestas usan contexto relevante en vez de cortar páginas por posición
+La idea no es solo guardar información. La idea es transformar fuentes dispersas en:
+- contexto útil
+- señales legibles
+- claims trazables
+- narrativas, hipótesis y escenarios
+- acciones mejor pensadas
+
+## Qué cambió en esta versión
+- la wiki dejó de estar organizada alrededor de “oportunidades”
+- se agregaron `senales/`, `narrativas/`, `hipotesis/`, `escenarios/` y `acciones/`
+- `raw/` se divide en `fuentes-originales/` y `assets/`
+- `index.md`, `dashboard.md` y `log.md` los recompone la app
+- el schema central vive en `wiki_schema.md`
+
+## Estructura
+```text
+files/
+  wiki_app.py
+  wiki_schema.md
+  APP_DOCUMENTATION.md
+  raw/
+    fuentes-originales/
+    assets/
+  wiki/
+    dashboard.md
+    index.md
+    log.md
+    fuentes/
+    senales/
+    claims/
+    narrativas/
+    hipotesis/
+    escenarios/
+    acciones/
+    temas/
+    entidades/
+    conceptos/
+    consultas/
+    templates/
+```
 
 ## Requisitos
-
 - Python 3.10+
 - LM Studio corriendo en `http://localhost:1234`
-- (Opcional) `pdfminer.six` para extraer texto de PDFs:
-  ```
-  pip install pdfminer.six
-  ```
+- Opcional: `pdfminer.six`
+
+```bash
+pip install pdfminer.six
+```
 
 ## Uso
-
 ```bash
 python wiki_app.py
 ```
 
 ## Operaciones
+- `＋ Ingerir fuente`: procesa texto, PDF o imagen y actualiza la wiki
+- `🔍 Consultar wiki`: hace preguntas sobre el contenido compilado
+- `🛠 Lint`: busca problemas, contradicciones y huecos
+- `📡 Ver radar`: abre el radar operativo
+- `⟳ Actualizar árbol`: refresca árbol e índices
 
-| Botón | Qué hace |
-|-------|----------|
-| ＋ Ingerir fuente | Procesa texto, PDF o imagen y actualiza la wiki |
-| 🔍 Consultar wiki | Hace una pregunta sobre el contenido acumulado |
-| 🛠 Lint | Analiza la wiki buscando contradicciones y páginas huérfanas |
-| ⟳ Actualizar árbol | Refresca el árbol de archivos del panel izquierdo |
-
-## Estructura generada
-
-```
-wiki_schema.md   ← esquema/convenios que sigue el LLM
-wiki/
-  entidades/   ← personas, instituciones, empresas, países
-  conceptos/   ← ideas, marcos, procesos
-  temas/       ← dossiers amplios y cruces entre dominios
-  fuentes/     ← resúmenes de cada fuente
-  consultas/   ← respuestas valiosas archivadas
-  index.md     ← índice general
-  log.md       ← historial de operaciones
-raw/           ← tus fuentes originales (inmutables, archivadas por la app)
-```
-
-## Configuración
-
-Editá las primeras líneas de `wiki_app.py` para cambiar:
-- `LM_STUDIO_URL` — si LM Studio corre en otra IP/puerto
-- `MODEL_NAME`    — el modelo que tengas cargado
+## Documentación
+La documentación completa está en [APP_DOCUMENTATION.md](./APP_DOCUMENTATION.md).

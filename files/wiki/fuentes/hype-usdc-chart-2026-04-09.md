@@ -44,3 +44,6 @@
 |-------|-------|
 | Última actualización | 2026-04-09 12:31 |
 | Confidence | 🟡 75% |
+
+---
+**Nota de Migración:** Esta fuente ha sido procesada el 2026-04-09. Se han extraído señales técnicas y datos de mercado para alimentar la wiki.

@@ -62,7 +62,7 @@ Hyperliquid ofrece contratos perpetuos eficientes con bajo slippage, atrayendo T
 Nunca >2% por trade, diversifique, use límites automáticos. Monitoree macro y sentimiento para ajustes.
 
 ***
-**ADVERTENCIA:** Este análisis no constituye un consejo de inversión. Siempre realice su propia investigación y considere sus objetivos y situación financiera antes de invertir en criptomonedas. Las inversiones en criptoactivos son de alto riesgo y pueden no ser adecuadas para todos. Investigue, consulte a un experto y verifique la legislación aplicable antes de invertir. Podría perder todo su capital.
+**ADVERTENCIA:** Este análisis no constituye un consejo de inversión. Siempre realice su propia investigación y considere sus objetivos y situación financiera antes de invertir. Las inversiones en criptoactivos son de alto riesgo y pueden no ser adecuadas para todos. Investigue, consulte a un experto y verifique la legislación aplicable antes de invertir. Podría perder todo su capital.
 
 ---
 *Última actualización: 2026-04-09 01:22*

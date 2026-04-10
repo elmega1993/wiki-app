@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=LLM Wiki
+Comment=Personal Intelligence & Action Wiki
+Exec=/usr/bin/python3 /home/alan/Documentos/wiki-app/files/wiki_app.py
+Icon=/home/alan/Documentos/wiki-app/files/wiki_app_icon.png
+Terminal=false
+Categories=Office;KnowledgeManagement;
+Path=/home/alan/Documentos/wiki-app/files
+StartupNotify=true
