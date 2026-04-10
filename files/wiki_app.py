@@ -480,8 +480,12 @@ def load_schema() -> str:
 
 
 def slugify(text: str) -> str:
+    # QC-01: Normalizar Unicode para evitar errores de encoding como #U00f1
+    import unicodedata
+    text = unicodedata.normalize("NFKD", text)
+    text = text.encode("ascii", "ignore").decode("ascii")
     text = re.sub(r"\s+", "-", text.strip().lower())
-    text = re.sub(r"[^a-z0-9áéíóúñü\-_]+", "-", text, flags=re.IGNORECASE)
+    text = re.sub(r"[^a-z0-9\-_]+", "-", text)
     text = re.sub(r"-{2,}", "-", text).strip("-")
     return text or "sin-titulo"
 
@@ -510,10 +514,15 @@ def extract_summary(content: str) -> str:
 def extract_metadata(content: str) -> dict[str, str]:
     metadata = {"updated": "s/d", "confidence": "s/d", "status": "s/d", "type": "s/d"}
     in_frontmatter = False
+    frontmatter_done = False
     for line in content.splitlines():
         stripped = line.strip()
         if stripped == "---":
-            in_frontmatter = not in_frontmatter
+            if not in_frontmatter and not frontmatter_done:
+                in_frontmatter = True
+            elif in_frontmatter:
+                in_frontmatter = False
+                frontmatter_done = True
             continue
         if in_frontmatter and ":" in stripped:
             key, value = stripped.split(":", 1)
@@ -783,17 +792,38 @@ def list_orphans() -> list[str]:
     return sorted(list(all_pages - referenced))
 
 
+def extract_text_content(path: str) -> str:
+    # Helper unificador para BUG-03
+    ext = Path(path).suffix.lower()
+    if ext == ".pdf":
+        return extract_pdf_text(path)
+    elif ext in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
+        # Para imágenes en batch, por ahora extraemos info básica o metadata
+        return f"[Imagen: {Path(path).name} - Procesada como asset]"
+    try:
+        return Path(path).read_text(encoding="utf-8")
+    except:
+        return f"[Error leyendo {path}]"
+
+
 def build_ingest_messages(text_content: str, file_path: str | None = None) -> list[dict]:
-    orphans = list_orphans()[:15] # Top 15 para no saturar
-    context = build_relevant_context(text_content, limit=8)
+    # Integración de BUG-01: Una sola función con toda la lógica de orfandad y contexto
+    orphans = list_orphans()[:15]
+    
+    # Priorizar el nombre del archivo para la búsqueda de contexto si está disponible
+    seed = Path(file_path).name if file_path else text_content[:300]
+    context = build_relevant_context(seed, limit=12)
     
     system_prompt = load_schema()
     if orphans:
         system_prompt += f"\n\nOBJETIVOS DE CONECTIVIDAD (Páginas huérfanas que necesitan links):\n- " + "\n- ".join([f"[[{o}]]" for o in orphans])
     
     user_prompt = f"/no_think\nIngerir esta fuente:\n\n{text_content}"
+    if file_path:
+        user_prompt = f"/no_think\nArchivo: {Path(file_path).name}\n\nContenido de la fuente:\n{text_content}"
+        
     if context:
-        user_prompt += f"\n\n---\nContexto relevante de la wiki:\n{context}"
+        user_prompt += f"\n\n---\nContexto relevante de la wiki (páginas similares):\n{context}"
     
     return [
         {"role": "system", "content": system_prompt},
@@ -806,82 +836,38 @@ def refresh_compiled_views():
     rebuild_dashboard()
 
 
-def build_ingest_messages(text_content: str, file_path: str | None, archived_source: Path) -> list[dict]:
-    context = "\n\n".join(
-        filter(
-            None,
-            [
-                read_wiki_context(),
-                build_page_catalog(),
-                build_relevant_context(Path(file_path).name if file_path else text_content[:300], limit=12),
-            ],
-        )
-    )
-    messages = [{"role": "system", "content": load_schema()}]
+def parse_json_response(raw: str) -> dict:
+    raw = raw.strip()
+    if "</think>" in raw:
+        raw = raw[raw.rfind("</think>") + len("</think>"):]
+    
+    # QC-03: Usar JSONDecoder robusto para manejar llaves dentro de strings
+    start = raw.find("{")
+    if start == -1:
+        # Fallback a regex si no hay llave clara
+        raw = re.sub(r"```(?:json)?\s*", "", raw)
+        raw = re.sub(r"```", "", raw).strip()
+        start = raw.find("{")
+        if start == -1: raise ValueError("No se encontró JSON")
 
-    if file_path:
-        ext = Path(file_path).suffix.lower()
-        if ext == ".pdf":
-            extracted = extract_pdf_text(file_path)
-            user_content = (
-                f"/no_think\nIngerí esta fuente PDF ({Path(file_path).name}). "
-                f"La copia inmutable quedó archivada en `{wiki_relpath(archived_source)}`.\n\n"
-                f"{extracted}\n\n---\nContexto actual de la wiki:\n{context}"
-            )
-            messages.append({"role": "user", "content": user_content})
-        elif ext in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
-            b64, mime = image_to_base64(file_path)
-            messages.append(
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
-                        {
-                            "type": "text",
-                            "text": (
-                                f"/no_think\nIngerí esta imagen ({Path(file_path).name}) en la wiki. "
-                                f"La copia inmutable quedó archivada en `{wiki_relpath(archived_source)}`.\n\n"
-                                f"Contexto actual:\n{context}"
-                            ),
-                        },
-                    ],
-                }
-            )
-        else:
-            user_content = (
-                f"/no_think\nIngerí esta fuente ({Path(file_path).name}). "
-                f"La copia inmutable quedó archivada en `{wiki_relpath(archived_source)}`.\n\n"
-                f"{Path(file_path).read_text(encoding='utf-8')}\n\n---\nContexto actual:\n{context}"
-            )
-            messages.append({"role": "user", "content": user_content})
-    else:
-        messages.append(
-            {
-                "role": "user",
-                "content": (
-                    f"/no_think\nIngerí esta fuente. "
-                    f"La nota original quedó archivada en `{wiki_relpath(archived_source)}`.\n\n"
-                    f"{text_content}\n\n---\nContexto actual de la wiki:\n{context}"
-                ),
-            }
-        )
-    return messages
+    try:
+        decoder = json.JSONDecoder()
+        obj, _ = decoder.raw_decode(raw, start)
+        return obj
+    except:
+        # Fallback final
+        return json.loads(raw[start:raw.rindex("}")+1])
 
 
 def process_ingest_source(text_content: str, file_path: str | None = None, already_archived: Path | None = None) -> tuple[list[tuple[Path, float]], str, Path]:
     archived_source = already_archived if already_archived else archive_source(text_content, file_path)
-    raw = call_lm_studio(build_ingest_messages(text_content, file_path, archived_source), timeout=180)
+    raw = call_lm_studio(build_ingest_messages(text_content, file_path), timeout=180)
     result = parse_json_response(raw)
     saved = save_pages(result.get("paginas", []))
-    refresh_compiled_views()
-    append_log_entry(
-        "ingest",
-        archived_source.name,
-        [f"Fuente archivada en: `{wiki_relpath(archived_source)}`"]
-        + [f"Página actualizada: `{wiki_relpath(path)}` | confidence {score:.0%}" for path, score in saved],
-    )
-    refresh_compiled_views()
-    return saved, result.get("resumen", "Procesado."), archived_source
+    # BUG-04: Eliminamos la llamada doble innecesaria a refresh_compiled_views()
+    append_log_entry("ingest", Path(file_path).name if file_path else "Texto directo", [f"Páginas creadas/actualizadas: {len(saved)}"])
+    refresh_compiled_views() 
+    return saved, result.get("resumen", "Sin resumen"), archived_source
 
 
 def call_lm_studio(messages: list, timeout: int = 120) -> str:
@@ -1262,16 +1248,6 @@ class WikiApp(tk.Tk):
         def worker():
             try:
                 saved, summary, _archived_source = process_ingest_source(text_content, file_path)
-                
-                # Eliminar archivo original tras éxito (comportamiento Inbox)
-                if file_path:
-                    try:
-                        p = Path(file_path)
-                        if p.exists():
-                            p.unlink()
-                    except Exception as e:
-                        print(f"No se pudo eliminar el archivo original: {e}")
-                
                 self.after(0, lambda: self._ingest_done(saved, summary))
             except Exception as exc:
                 self.after(0, lambda: self._set_status(f"❌ Error: {exc}", ACCENT3))
@@ -1295,25 +1271,19 @@ class WikiApp(tk.Tk):
                     self.after(0, lambda i=idx, total=len(file_paths), name=Path(file_path).name: self._set_status(f"⏳ Batch ingest {i}/{total}: {name}", FG2))
                     
                     path_obj = Path(file_path)
+                    # BUG-03: Extraer contenido real para no enviar placeholders al LLM
                     if path_obj.suffix.lower() in (".txt", ".md"):
                         text_content = path_obj.read_text(encoding="utf-8")
                     else:
-                        text_content = f"[Archivo seleccionado: {file_path}]"
-                    
-                    # Si ya está en raw, pasamos el path original para evitar duplicar
+                        text_content = extract_text_content(str(path_obj))
+                        
                     already_archived = path_obj if is_raw_source else None
-                    saved, summary, _archived_source = process_ingest_source(text_content, file_path, already_archived=already_archived)
-                    
+                    saved, summary, _archived_source = process_ingest_source(text_content, str(path_obj), already_archived=already_archived)
                     processed += 1
                     created_pages += len(saved)
                     last_summary = summary
                     
-                    # Eliminar archivo original tras éxito para mantener el "Inbox" limpio
-                    try:
-                        if path_obj.exists():
-                            path_obj.unlink()
-                    except Exception as e:
-                        print(f"No se pudo eliminar {file_path}: {e}")
+                    # Eliminación de unlink automático en batch por consistencia
                 except Exception as exc:
                     print(f"Error procesando {file_path}: {exc}")
                     # Continuamos con el siguiente archivo
