@@ -1,163 +1,71 @@
-# App Documentation
+# App Documentation: LLM Wiki (Brain Shell)
 
-## Overview
-`wiki_app.py` es una app de escritorio en Python/Tkinter para construir una wiki personal generalista usando LM Studio.
+Esta aplicación es una implementación robusta del patrón "LLM Wiki" (Karpathy), diseñada para transformar información dispersa en un ecosistema de conocimiento estructurado, trazable e interconectado.
 
-La app está pensada para convertir información dispersa en una base útil para pensar, construir, decidir e invertir mejor, sin reducir todo a “oportunidades”.
+## Características Principales (Update 2026-04)
 
-## Product Goal
-La wiki no es solo un archivo de notas. Es un sistema para:
-- capturar información relevante
-- separar señales, hechos, interpretaciones y rumores
-- preservar trazabilidad
-- detectar patrones, tensiones y temas emergentes
-- construir narrativas, hipótesis, escenarios y acciones posibles
+### 1. Ingesta Inteligente y Segura
+- **Inbox No Destructivo**: A diferencia de versiones anteriores, la app ya no elimina los archivos originales del usuario. Se respeta la inmutabilidad de la capa `raw/`.
+- **Smart Merge**: Al actualizar páginas existentes, el modelo recibe el contenido anterior y está instruido para INTEGRAR la información, no para sobrescribirla ciegamente.
+- **Backups Automáticos**: Cada actualización de página genera un archivo `.md.bak` de seguridad.
+- **Batch Processing**: Ingesta masiva de carpetas con soporte real para extracción de texto en PDFs e imágenes.
 
-## Inputs Esperados
-- noticias
-- tweets
-- ideas propias
-- rumores
-- capturas de pantalla
-- PDFs
-- documentos
+### 2. Conectividad Dinámica (Anti-Orphan)
+- **Active Connectivity**: El sistema analiza la wiki en tiempo real para detectar páginas huérfanas (sin enlaces entrantes).
+- **Inyección de Objetivos**: Durante la ingesta, el LLM recibe estas páginas huérfanas como objetivos para forzar la creación de enlaces bidireccionales, evitando que tu conocimiento quede aislado en "islas".
 
-## Core Folders
+### 3. Integridad de Datos
+- **FILE_LOCK**: Sistema de bloqueo de concurrencia que garantiza que las escrituras en archivos maestros (`log.md`, `index.md`, `dashboard.md`) sean atómicas y seguras.
+- **Unicode Robustness**: Función `slugify` mejorada que soporta caracteres latinos (`ñ`, acentos) y normalización Unicode para evitar nombres de archivo corruptos.
+- **Parseo Profesional**: Uso de `raw_decode` para manejar respuestas del LLM con caracteres especiales y bloques de código complejos.
+
+### 4. Experiencia de Usuario (UX)
+- **Obsidian Native**: Generación de `[[wikilinks]]` puros para una visualización fluida del Grafo de Conocimiento.
+- **Desktop Launcher**: Icono premium y lanzador integrado en el escritorio Linux para acceso rápido.
+- **Feedback Visual**: Diálogos de confirmación y barras de estado detalladas durante el procesamiento.
+
+---
+
+## Estructura de Carpetas
 ```text
 files/
-  wiki_app.py
-  wiki_schema.md
-  APP_DOCUMENTATION.md
-  raw/
+  wiki_app.py          # Orquestador principal (Tkinter + LLM Logic)
+  wiki_schema.md       # Cerebro/Reglas compartidas con el modelo
+  raw/                 # Almacén inmutable de fuentes
     fuentes-originales/
-    assets/
-  wiki/
-    dashboard.md
-    index.md
-    log.md
-    fuentes/
-    senales/
-    claims/
-    narrativas/
-    hipotesis/
-    escenarios/
-    acciones/
-    temas/
-    entidades/
-    conceptos/
-    consultas/
-    templates/
+    assets/            # PDFs e Imágenes originales
+  wiki/                # Tu cerebro sintético
+    fuentes/           # Resúmenes trazables
+    senales/           # Indicios temporales
+    claims/            # Hechos atómicos
+    hipotesis/         # Tesis de trabajo
+    escenarios/        # Simulaciones
+    acciones/          # Pasos operativos
+    consultas/         # Preguntas archivadas
+    templates/         # Guías de formato
 ```
 
-## Folder Roles
-### `raw/fuentes-originales/`
-Archivo inmutable de textos y fuentes originales.
+## Flujos de Trabajo Maestros
 
-### `raw/assets/`
-Imágenes, PDFs y binarios relacionados.
+### Ingesta (La Siembra)
+1. El usuario selecciona fuentes (Texto, PDF, Imágenes, Carpetas).
+2. La app genera un contexto relevante (Búsqueda por palabras clave + Catalog + Log + Huérfanas).
+3. El LLM extrae señales y crea/actualiza páginas.
+4. Se generan backups y se actualiza el `index.md` automáticamente.
 
-### `wiki/fuentes/`
-Resumen estructurado de cada fuente ingresada.
+### Consulta (La Cosecha)
+1. Pregunta libre sobre la base de conocimiento.
+2. Recuperación de contexto basada en relevancia semántica simple.
+3. Respuesta del LLM con links activos a las fuentes.
+4. Botón "Guardar en Wiki" para preservar respuestas valiosas.
 
-### `wiki/senales/`
-Indicios tempranos, débiles o ambiguos que todavía no son hechos consolidados.
+---
 
-### `wiki/claims/`
-Afirmaciones atómicas y trazables.
+## Notas Técnicas
+- **Motor**: Diseñado para ser usado con LM Studio (Local Inference).
+- **Timeouts**: 180s para ingestas complejas.
+- **Soporte PDF**: Extracción basada en PDFMiner.
+- **Versionado**: Integración nativa con `git` sugerida para el directorio de la wiki.
 
-### `wiki/narrativas/`
-Marcos interpretativos en circulación.
-
-### `wiki/hipotesis/`
-Tesis de trabajo y explicaciones tentativas.
-
-### `wiki/escenarios/`
-Futuros plausibles, condiciones y consecuencias.
-
-### `wiki/acciones/`
-Qué mirar, validar, construir, evitar o ejecutar.
-
-### `wiki/temas/`
-Dossiers amplios sobre un asunto.
-
-### `wiki/entidades/`
-Personas, organizaciones, instituciones, países, activos, protocolos, etc.
-
-### `wiki/conceptos/`
-Marcos, doctrinas, procesos, términos, narrativas conceptuales.
-
-### `wiki/consultas/`
-Respuestas reutilizables archivadas desde la UI.
-
-### `wiki/templates/`
-Plantillas de referencia para señales, claims, hipótesis, escenarios y acciones.
-
-## App-Managed Files
-### `wiki/index.md`
-Índice general generado por la app.
-
-### `wiki/dashboard.md`
-Radar operativo del estado actual de la wiki:
-- conteos
-- páginas recientes
-- hipótesis activas
-
-### `wiki/log.md`
-Historial cronológico de ingestas y consultas archivadas.
-
-## Main Workflows
-### Ingest
-1. El usuario pega texto o elige un archivo.
-2. La app archiva la fuente original en `raw/`.
-3. La app arma contexto con:
-   - radar
-   - index
-   - log
-   - catálogo de páginas
-   - páginas relevantes
-4. LM Studio devuelve páginas compiladas.
-5. La app las guarda y recompone radar e índice.
-
-### Query
-1. El usuario pregunta.
-2. La app selecciona contexto relevante.
-3. LM Studio responde en markdown.
-4. Si la respuesta vale la pena, se puede archivar en `wiki/consultas/`.
-
-### Lint
-El modelo analiza:
-- contradicciones
-- orfandad
-- claims débiles
-- hipótesis sin evidencia suficiente
-- señales repetidas sin elevar
-- temas emergentes sin dossier
-
-## Conceptual Chain
-`fuente -> señal -> claim -> narrativa/mapa -> hipótesis -> escenario -> acción`
-
-## Why This Structure
-Esto evita dos problemas comunes:
-- guardar texto sin utilidad posterior
-- mezclar rumores con hechos sin marcar diferencias
-
-## Suggested Evaluation Axes
-- `reliability`
-- `signal_strength`
-- `impact`
-- `actionability`
-
-## Technical Notes
-- UI: Tkinter
-- HTTP a LM Studio: `urllib`
-- PDFs: `pdfminer.six` o `pdftotext`
-- Imágenes: base64 inline
-- Schema/prompt central: `wiki_schema.md`
-
-## Next Recommended Upgrades
-- watchlists por entidad o tema
-- resúmenes diarios y semanales
-- detección de convergencia entre fuentes
-- score temporal para señales débiles
-- embeddings o búsqueda semántica
-- filtro explícito por lente: financiera, política, legal, tecnológica, etc.
+---
+*Documentación actualizada al 10 de Abril de 2026.*
