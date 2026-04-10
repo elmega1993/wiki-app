@@ -16,6 +16,7 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
+from wiki_utils import slugify, extract_metadata, parse_json_response
 
 LM_STUDIO_URL = "http://localhost:1234/v1/chat/completions"
 MODEL_NAME = "qwen/qwen3.5-9b"
@@ -479,15 +480,7 @@ def load_schema() -> str:
     return schema.replace("__TODAY__", hoy).replace("__TIME__", hora)
 
 
-def slugify(text: str) -> str:
-    # QC-01: Normalizar Unicode para evitar errores de encoding como #U00f1
-    import unicodedata
-    text = unicodedata.normalize("NFKD", text)
-    text = text.encode("ascii", "ignore").decode("ascii")
-    text = re.sub(r"\s+", "-", text.strip().lower())
-    text = re.sub(r"[^a-z0-9\-_]+", "-", text)
-    text = re.sub(r"-{2,}", "-", text).strip("-")
-    return text or "sin-titulo"
+# Las funciones slugify, extract_metadata y parse_json_response ahora se importan de wiki_utils.py
 
 
 def wiki_relpath(path: Path) -> str:
@@ -511,38 +504,7 @@ def extract_summary(content: str) -> str:
     return "Sin resumen todavía."
 
 
-def extract_metadata(content: str) -> dict[str, str]:
-    metadata = {"updated": "s/d", "confidence": "s/d", "status": "s/d", "type": "s/d"}
-    in_frontmatter = False
-    frontmatter_done = False
-    for line in content.splitlines():
-        stripped = line.strip()
-        if stripped == "---":
-            if not in_frontmatter and not frontmatter_done:
-                in_frontmatter = True
-            elif in_frontmatter:
-                in_frontmatter = False
-                frontmatter_done = True
-            continue
-        if in_frontmatter and ":" in stripped:
-            key, value = stripped.split(":", 1)
-            key = key.strip().lower()
-            value = value.strip()
-            if key in {"updated_at", "signal_date", "claim_date", "created_at"} and metadata["updated"] == "s/d":
-                metadata["updated"] = value
-            elif key == "status":
-                metadata["status"] = value
-            elif key == "type":
-                metadata["type"] = value
-        if "Última actualización" in line:
-            parts = [part.strip() for part in line.split("|") if part.strip()]
-            if parts:
-                metadata["updated"] = parts[-1]
-        if "Confidence" in line:
-            parts = [part.strip() for part in line.split("|") if part.strip()]
-            if parts:
-                metadata["confidence"] = parts[-1]
-    return metadata
+# La lógica de extracción de metadatos se movió a wiki_utils.py
 
 
 def iter_wiki_pages():
@@ -836,27 +798,7 @@ def refresh_compiled_views():
     rebuild_dashboard()
 
 
-def parse_json_response(raw: str) -> dict:
-    raw = raw.strip()
-    if "</think>" in raw:
-        raw = raw[raw.rfind("</think>") + len("</think>"):]
-    
-    # QC-03: Usar JSONDecoder robusto para manejar llaves dentro de strings
-    start = raw.find("{")
-    if start == -1:
-        # Fallback a regex si no hay llave clara
-        raw = re.sub(r"```(?:json)?\s*", "", raw)
-        raw = re.sub(r"```", "", raw).strip()
-        start = raw.find("{")
-        if start == -1: raise ValueError("No se encontró JSON")
-
-    try:
-        decoder = json.JSONDecoder()
-        obj, _ = decoder.raw_decode(raw, start)
-        return obj
-    except:
-        # Fallback final
-        return json.loads(raw[start:raw.rindex("}")+1])
+# El parseo de JSON se movió a wiki_utils.py
 
 
 def process_ingest_source(text_content: str, file_path: str | None = None, already_archived: Path | None = None) -> tuple[list[tuple[Path, float]], str, Path]:
